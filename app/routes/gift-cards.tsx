@@ -5,7 +5,7 @@ import type { Route } from "./+types/gift-cards";
 
 // Hardcoded data
 const AVAILABLE_CARDS = [
-  { id: "amazon", name: "Amazon", color: "#FF9900" },
+  { id: "amazon", name: "Amazon 2", color: "#FF9900" },
   { id: "starbucks", name: "Starbucks", color: "#00704A" },
   { id: "target", name: "Target", color: "#CC0000" },
   { id: "apple", name: "Apple", color: "#555555" },
@@ -112,7 +112,7 @@ export default function GiftCards() {
       setIsTransitioning(true);
 
       // Inject CSS for z-indexes and fade animations
-      const cleanup = injectViewTransitionStyles(addedCards, card.id);
+      // const cleanup = injectViewTransitionStyles(addedCards, card.id);
 
       const transition = document.startViewTransition(() => {
         flushSync(() => {
@@ -122,7 +122,7 @@ export default function GiftCards() {
       });
       transition.finished.then(() => {
         setIsTransitioning(false);
-        cleanup();
+        // cleanup();
       });
     } else {
       setSelectedCard(card);
@@ -139,7 +139,7 @@ export default function GiftCards() {
         setIsTransitioning(true);
 
         // Inject CSS for z-indexes and fade animations
-        const cleanup = injectViewTransitionStyles(addedCards, selectedCard?.id || null);
+        // const cleanup = injectViewTransitionStyles(addedCards, selectedCard?.id || null);
 
         const transition = document.startViewTransition(() => {
           flushSync(() => {
@@ -149,7 +149,7 @@ export default function GiftCards() {
         transition.finished.then(() => {
           setIsTransitioning(false);
           setSelectedCard(null);
-          cleanup();
+          // cleanup();
         });
       } else {
         setSelectedCard(null);
