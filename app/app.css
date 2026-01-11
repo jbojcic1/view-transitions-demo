@@ -1,0 +1,135 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+html,
+body {
+  @apply bg-white dark:bg-gray-950;
+
+  @media (prefers-color-scheme: dark) {
+    color-scheme: dark;
+  }
+}
+
+/* Hide scrollbar for horizontal scroll */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* =============================================
+   View Transition API Styles
+   ============================================= */
+
+/* Enable view transitions */
+@supports (view-transition-name: none) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 0.4s;
+  }
+
+  /* Available cards section - fade out/in */
+  .view-transition-available {
+    view-transition-name: available-cards;
+  }
+
+  ::view-transition-old(available-cards),
+  ::view-transition-new(available-cards) {
+    animation-duration: 0.3s;
+    animation-timing-function: ease-out;
+  }
+
+  ::view-transition-old(available-cards) {
+    animation-name: fade-out;
+  }
+
+  ::view-transition-new(available-cards) {
+    animation-name: fade-in;
+  }
+
+
+  /* Transactions section - fade in from bottom */
+  .view-transition-transactions {
+    view-transition-name: transactions;
+  }
+
+  ::view-transition-old(transactions),
+  ::view-transition-new(transactions) {
+    animation-duration: 0.35s;
+    animation-timing-function: ease-out;
+  }
+
+  ::view-transition-old(transactions) {
+    animation-name: slide-fade-out;
+  }
+
+  ::view-transition-new(transactions) {
+    animation-name: slide-fade-in;
+  }
+
+  /* Individual card transitions - morph between positions */
+  /* Cards use dynamic view-transition-name: card-{id} set in JSX */
+  ::view-transition-group(*) {
+    animation-duration: 0.4s;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /*
+   * Card z-indexes: Let the browser handle z-index based on DOM order.
+   * Both BrowseView and DetailView render cards in the same order (from allCards/addedCards),
+   * so the DOM order should be consistent and produce correct layering.
+   */
+
+  /* Ensure cards maintain their z-index during transition */
+  ::view-transition-image-pair(*) {
+    isolation: auto;
+  }
+}
+
+/* Animation keyframes */
+@keyframes fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+
+@keyframes slide-fade-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+}
+
+@keyframes slide-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
