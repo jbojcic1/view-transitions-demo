@@ -58,9 +58,10 @@ export function meta({}: Route.MetaArgs) {
 type CardData = { id: string; name: string; color: string };
 type ViewState = "browse" | "detail";
 
-// Dynamically inject CSS for view-transition-group z-indexes based on stack order
-function injectViewTransitionZIndexes(cards: CardData[]): () => void {
-  const styleId = "view-transition-z-indexes";
+// Dynamically inject CSS for view-transition-group z-indexes
+// All cards move (no fading) - the split-stack effect handles positioning
+function injectViewTransitionStyles(cards: CardData[], selectedCardId: string | null): () => void {
+  const styleId = "view-transition-dynamic-styles";
 
   // Remove existing style if any
   const existing = document.getElementById(styleId);
@@ -69,13 +70,16 @@ function injectViewTransitionZIndexes(cards: CardData[]): () => void {
   // Create new style with z-indexes based on current stack order
   const style = document.createElement("style");
   style.id = styleId;
-  style.textContent = cards
-    .map((card, index) => {
-      const zIndex = index + 1;
-      return `::view-transition-group(card-${card.id}) { z-index: ${zIndex}; }`;
-    })
-    .join("\n");
 
+  const rules: string[] = [];
+
+  cards.forEach((card, index) => {
+    const zIndex = index + 1;
+    // Set z-index for all cards - they all move, no fading
+    rules.push(`::view-transition-group(card-${card.id}) { z-index: ${zIndex}; }`);
+  });
+
+  style.textContent = rules.join("\n");
   document.head.appendChild(style);
 
   // Return cleanup function
@@ -107,8 +111,8 @@ export default function GiftCards() {
     if (document.startViewTransition) {
       setIsTransitioning(true);
 
-      // Inject CSS to set correct z-indexes for view-transition-groups
-      const cleanup = injectViewTransitionZIndexes(addedCards);
+      // Inject CSS for z-indexes and fade animations
+      const cleanup = injectViewTransitionStyles(addedCards, card.id);
 
       const transition = document.startViewTransition(() => {
         flushSync(() => {
@@ -134,8 +138,8 @@ export default function GiftCards() {
       if (document.startViewTransition) {
         setIsTransitioning(true);
 
-        // Inject CSS to set correct z-indexes for view-transition-groups
-        const cleanup = injectViewTransitionZIndexes(addedCards);
+        // Inject CSS for z-indexes and fade animations
+        const cleanup = injectViewTransitionStyles(addedCards, selectedCard?.id || null);
 
         const transition = document.startViewTransition(() => {
           flushSync(() => {
@@ -155,7 +159,7 @@ export default function GiftCards() {
       // Go back to home
       navigate("/");
     }
-  }, [viewState, navigate, isTransitioning, addedCards]);
+  }, [viewState, navigate, isTransitioning, addedCards, selectedCard]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -246,7 +250,7 @@ function BrowseView({
 }
 
 // Detail View: Selected card + Transactions
-// All cards rendered in ONE container in stack DOM order for correct view-transition z-index
+// Split-stack transition: cards at/below selected go UP, cards above go DOWN off-screen
 function DetailView({
   card,
   allCards,
@@ -256,12 +260,57 @@ function DetailView({
   allCards: CardData[];
   transactions: { id: string; description: string; amount: string; date: string }[];
 }) {
-  const PEEK_OFFSET = 20;
+  const PEEK_OFFSET = 40;
+  const selectedIndex = allCards.findIndex((c) => c.id === card.id);
 
   return (
-    <div className="flex-1 flex flex-col">
-      {/* Transactions - shown below the card area */}
-      <div className="flex-1 p-4 view-transition-transactions order-2">
+    <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Card area at top */}
+      <div className="relative p-4" style={{ minHeight: `${192 + 16}px` }}>
+        {allCards.map((c, index) => {
+          const isSelected = c.id === card.id;
+          const zIndex = index + 1;
+          const isAtOrBelowSelected = index <= selectedIndex;
+
+          if (isAtOrBelowSelected) {
+            // Cards at or below selected (including selected): all at top position
+            // Selected card has highest z-index among this group, so it covers the others
+            return (
+              <div
+                key={c.id}
+                className={isSelected ? "relative" : "absolute left-4 right-4"}
+                style={{
+                  top: isSelected ? undefined : "16px",
+                  zIndex,
+                  viewTransitionName: `card-${c.id}`,
+                }}
+              >
+                <GiftCard card={c} size="large" />
+              </div>
+            );
+          }
+
+          // Cards ABOVE selected in stack: off-screen at bottom
+          // Maintain their relative stacking (with peek offset) so they animate back correctly
+          const offsetBelowViewport = (index - selectedIndex - 1) * PEEK_OFFSET;
+          return (
+            <div
+              key={c.id}
+              className="absolute left-4 right-4"
+              style={{
+                top: `calc(100vh + ${offsetBelowViewport}px)`,
+                zIndex,
+                viewTransitionName: `card-${c.id}`,
+              }}
+            >
+              <GiftCard card={c} size="large" />
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Transactions */}
+      <div className="flex-1 p-4 view-transition-transactions overflow-auto">
         <h2 className="text-sm font-medium text-gray-500 mb-3">Transactions</h2>
         {transactions.length === 0 ? (
           <p className="text-gray-400 text-center py-4">No transactions yet.</p>
@@ -288,49 +337,6 @@ function DetailView({
           </ul>
         )}
       </div>
-
-      {/* ALL cards in ONE container, in stack DOM order */}
-      {/* Selected card positioned at top, others invisible at stack positions */}
-      <div
-        className="relative p-4 order-1"
-        style={{ minHeight: `${192 + 16}px` }}
-      >
-        {allCards.map((c, index) => {
-          const isSelected = c.id === card.id;
-          const zIndex = index + 1;
-          const bottomOffset = (allCards.length - 1 - index) * PEEK_OFFSET;
-
-          if (isSelected) {
-            // Selected card: positioned at top (not in stack position)
-            return (
-              <div
-                key={c.id}
-                className="w-full"
-                style={{
-                  viewTransitionName: `card-${c.id}`,
-                }}
-              >
-                <GiftCard card={c} size="large" />
-              </div>
-            );
-          }
-
-          // Non-selected cards: invisible at their stack positions
-          return (
-            <div
-              key={c.id}
-              className="absolute left-4 right-4 mx-auto opacity-0 pointer-events-none"
-              style={{
-                bottom: `${bottomOffset + 16}px`, // +16 for padding
-                zIndex,
-                viewTransitionName: `card-${c.id}`,
-              }}
-            >
-              <GiftCard card={c} size="large" />
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }
@@ -345,7 +351,7 @@ function CardStack({
 }) {
   // cards array: oldest first, newest last
   // We want: newest at bottom (fully visible), older cards peek from above
-  const PEEK_OFFSET = 20;
+  const PEEK_OFFSET = 40;
 
   return (
     <div className="relative" style={{ height: `${192 + (cards.length - 1) * PEEK_OFFSET}px` }}>
