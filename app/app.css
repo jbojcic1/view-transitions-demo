@@ -80,11 +80,22 @@ body {
     animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  /*
-   * Card z-indexes: Let the browser handle z-index based on DOM order.
-   * Both BrowseView and DetailView render cards in the same order (from allCards/addedCards),
-   * so the DOM order should be consistent and produce correct layering.
-   */
+  /* Transactions should be below cards during transition */
+  ::view-transition-group(transactions) {
+    z-index: 1;
+  }
+
+  /* Cards should be above everything else during transition */
+  ::view-transition-group(card-amazon),
+  ::view-transition-group(card-starbucks),
+  ::view-transition-group(card-target),
+  ::view-transition-group(card-apple),
+  ::view-transition-group(card-spotify),
+  ::view-transition-group(card-netflix),
+  ::view-transition-group(card-uber),
+  ::view-transition-group(card-airbnb) {
+    z-index: 100;
+  }
 
   /* Ensure cards maintain their z-index during transition */
   ::view-transition-image-pair(*) {
